@@ -247,23 +247,23 @@ if errors.Is(err, namestore.ErrInvalidPattern) {
 ### Namespace Design
 
 ```go
-// ✅ Good: Clear hierarchy
+// Good: Clear hierarchy
 users := namestore.New[string]("myapp", "users")
 cache := namestore.New[string]("myapp", "cache")
 sessions := namestore.New[string]("myapp", "sessions")
 
-// ❌ Bad: No namespace isolation
+// Bad: No namespace isolation
 global := namestore.New[string]("", "")
 ```
 
 ### Key Naming
 
 ```go
-// ✅ Good: Descriptive, hierarchical keys
+// Good: Descriptive, hierarchical keys
 client.Set(ctx, "user:profile:1001", data, 0)
 client.Set(ctx, "post:comments:5432", data, 0)
 
-// ❌ Bad: Ambiguous keys
+// Bad: Ambiguous keys
 client.Set(ctx, "1001", data, 0)
 client.Set(ctx, "data", data, 0)
 ```
@@ -271,21 +271,21 @@ client.Set(ctx, "data", data, 0)
 ### TTL Strategy
 
 ```go
-// ✅ Good: Explicit TTL management
+// Good: Explicit TTL management
 client.Set(ctx, "cache:expensive-query", result, 5*time.Minute)
 client.Set(ctx, "session:token", token, 24*time.Hour)
 
-// ❌ Bad: Everything permanent or everything expires
+// Bad: Everything permanent or everything expires
 client.Set(ctx, "permanent-data", data, 1*time.Hour) // Should be 0
 ```
 
 ### Batch Operations
 
 ```go
-// ✅ Good: Use batch operations for efficiency
+// Good: Use batch operations for efficiency
 results, _ := client.MGet(ctx, key1, key2, key3, key4, key5)
 
-// ❌ Bad: Individual calls in loop
+// Bad: Individual calls in loop
 for _, key := range keys {
     client.Get(ctx, key) // Multiple round trips
 }
@@ -350,10 +350,10 @@ Contributions welcome! Please ensure:
 
 ## Roadmap
 
-- [ ] Redis driver implementation
-- [ ] Memcached driver implementation
-- [ ] Metrics and observability hooks
-- [ ] Transaction support (multi-key operations)
-- [ ] Pub/Sub for key change notifications
-- [ ] LRU eviction policy for memory driver
-- [ ] Background TTL cleanup for memory driver
+- Redis driver implementation
+- Memcached driver implementation
+- Metrics and observability hooks
+- Transaction support (multi-key operations)
+- Pub/Sub for key change notifications
+- LRU eviction policy for memory driver
+- Background TTL cleanup for memory driver

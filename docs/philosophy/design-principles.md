@@ -1,6 +1,6 @@
 # Design Principles
 
-NameStore is built on a foundation of software engineering principles and philosophical clarity.
+NameStore is built on a foundation of software engineering best practices.
 
 ## SOLID Principles
 
@@ -105,7 +105,7 @@ func (c *client[TKey]) Get(ctx context.Context, key TKey) ([]byte, error) {
 
 **Anti-pattern (avoided):**
 ```go
-// ❌ Don't repeat prefixing logic
+// Don't repeat prefixing logic
 c.driver.Get(ctx, fmt.Sprintf("%s:%s", c.prefix, key))
 ```
 
@@ -125,9 +125,9 @@ func clone(src []byte) []byte {
 // Used in Get, Set, MGet, etc.
 ```
 
-## Philosophical Clarity: 信达雅
+## Naming Conventions
 
-### 信 (Faithfulness) - Semantic Correctness
+### Semantic Correctness
 
 **True to domain concepts:**
 
@@ -138,13 +138,13 @@ func clone(src []byte) []byte {
 
 **Example:**
 ```go
-// Faithful: Clear means "remove all keys in this namespace"
+// Clear means "remove all keys in this namespace"
 func (c *client[TKey]) Clear(ctx context.Context) error {
     return c.driver.Clear(ctx, c.prefix)  // Only affects this namespace
 }
 ```
 
-### 达 (Expressiveness) - Clear Intent
+### Clear Intent
 
 **Method names convey purpose:**
 
@@ -154,21 +154,21 @@ func (c *client[TKey]) Clear(ctx context.Context) error {
 
 **Parameter names are semantic:**
 ```go
-// ✓ Expressive
+// Expressive
 func Expire(ctx context.Context, key TKey, ttl time.Duration) error
 
-// ✗ Not expressive
+// Not expressive
 func Expire(ctx context.Context, k TKey, d time.Duration) error
 ```
 
 **Example:**
 ```go
-// Expressive: The code reads like the requirement
+// The code reads like the requirement
 ok, err := client.CompareAndSwap(ctx, "lock", oldOwner, newOwner, 30*time.Second)
 // "Compare lock with oldOwner and swap to newOwner with 30s TTL"
 ```
 
-### 雅 (Elegance) - Simplicity and Beauty
+### Simplicity and Composability
 
 **Minimal API surface:**
 
@@ -178,7 +178,7 @@ ok, err := client.CompareAndSwap(ctx, "lock", oldOwner, newOwner, 30*time.Second
 
 **Composable operations:**
 ```go
-// Elegant: Build complex patterns from simple primitives
+// Build complex patterns from simple primitives
 func acquireLock(client Client[string], resource string) bool {
     return client.SetNX(ctx, "lock:"+resource, owner, 30*time.Second)
 }
@@ -188,7 +188,7 @@ func renewLock(client Client[string], resource string) error {
 }
 ```
 
-**Elegant error handling:**
+**Consistent error handling:**
 ```go
 // Single check for "not found" across all operations
 if errors.Is(err, namestore.ErrNotFound) {
@@ -262,10 +262,10 @@ All code paths tested, including:
 ### Batch Operations Reduce Round Trips
 
 ```go
-// ✓ Efficient: Single call
+// Efficient: Single call
 results, _ := client.MGet(ctx, "key1", "key2", "key3")
 
-// ✗ Inefficient: Multiple calls
+// Inefficient: Multiple calls
 data1, _ := client.Get(ctx, "key1")
 data2, _ := client.Get(ctx, "key2")
 data3, _ := client.Get(ctx, "key3")
@@ -287,6 +287,5 @@ if entry.expired() {
 
 ## Next Steps
 
-- [Naming Convention Philosophy](naming.md)
 - [Architecture Deep Dive](../architecture.md)
 - [Best Practices](../advanced/best-practices.md)
