@@ -1,0 +1,207 @@
+# golangci-lint configuration with strictest rules
+# Reference: https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  sort-results: true
+
+linters:
+  enable-all: true
+  disable:
+    # Deprecated linters
+    - execinquery
+    - gomnd # replaced by mnd
+    - deadcode # deprecated
+    - structcheck # deprecated
+    - varcheck # deprecated
+    - ifshort # deprecated
+    - golint # deprecated
+    - interfacer # deprecated
+    - maligned # deprecated
+    - nosnakecase # deprecated
+    - scopelint # deprecated
+
+    # Disable opinionated/conflicting linters
+    - exhaustruct # too strict for test helpers
+    - ireturn # conflicts with generic interface design
+    - varnamelen # too opinionated on variable naming
+    - nlreturn # too strict on newline formatting
+    - wsl # too strict on whitespace
+    - depguard # requires custom config for dependencies
+    - tagalign # too opinionated on struct tag formatting
+
+linters-settings:
+  # Code complexity
+  gocyclo:
+    min-complexity: 10
+
+  cyclop:
+    max-complexity: 10
+    skip-tests: false
+
+  gocognit:
+    min-complexity: 15
+
+  maintidx:
+    under: 20
+
+  # Function length
+  funlen:
+    lines: 80
+    statements: 50
+    ignore-comments: true
+
+  # Naming conventions
+  revive:
+    severity: error
+    confidence: 0.8
+    enable-all-rules: true
+    rules:
+      # Disable overly strict rules
+      - name: line-length-limit
+        disabled: true
+      - name: function-length
+        disabled: true # covered by funlen
+      - name: max-public-structs
+        disabled: true
+      - name: cognitive-complexity
+        disabled: true # covered by gocognit
+      - name: cyclomatic
+        disabled: true # covered by gocyclo
+      - name: file-header
+        disabled: true
+      - name: add-constant
+        disabled: true # too strict for tests
+      - name: argument-limit
+        arguments: [5]
+      - name: function-result-limit
+        arguments: [3]
+
+  # Error handling
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude-functions:
+      - (io.Closer).Close
+
+  goerr113:
+    check-error-free-funcs: true
+
+  wrapcheck:
+    ignoreSigs:
+      - .Errorf(
+      - errors.New(
+      - errors.Unwrap(
+      - errors.Join(
+      - .Wrap(
+      - .Wrapf(
+      - .WithMessage(
+      - .WithStack(
+
+  # Import order
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(code.byted.org/khicago/namestore)
+
+  goimports:
+    local-prefixes: code.byted.org/khicago/namestore
+
+  # Code duplication
+  dupl:
+    threshold: 100
+
+  # Comments
+  godot:
+    scope: all
+    capital: true
+
+  godox:
+    keywords:
+      - BUG
+      - FIXME
+      - HACK
+
+  # Testing
+  testpackage:
+    skip-regexp: (internal|mock)_test\.go
+
+  testifylint:
+    enable-all: true
+
+  # Performance
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: true
+
+  # Style
+  stylecheck:
+    checks: ["all"]
+
+  # Unused code
+  unused:
+    field-writes-are-uses: true
+    exported-fields-are-used: true
+
+  unparam:
+    check-exported: true
+
+  # Disable noisy linters for tests
+  lll:
+    line-length: 120
+    tab-width: 1
+
+  nestif:
+    min-complexity: 4
+
+  nolintlint:
+    allow-unused: false
+    require-explanation: true
+    require-specific: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - funlen
+        - maintidx
+        - gocognit
+
+    # Exclude mock implementations
+    - path: _test\.go
+      text: "^(mock|stub)"
+      linters:
+        - revive
+        - stylecheck
+
+    # Allow globals in tests
+    - path: _test\.go
+      text: "avoid using global variables"
+      linters:
+        - gochecknoglobals
+
+    # Allow init functions in tests
+    - path: _test\.go
+      text: "init function"
+      linters:
+        - gochecknoinits
+
+  # Show all issues
+  exclude-use-default: false
