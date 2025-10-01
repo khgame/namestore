@@ -43,7 +43,8 @@ func (m *Memory) SetNX(ctx context.Context, key string, value []byte, ttl time.D
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if entry, ok := m.data[key]; ok {
-		if entry.expired() {
+		now := time.Now()
+		if entry.expiredAt(now) {
 			delete(m.data, key)
 		} else {
 			return false, nil
@@ -63,8 +64,9 @@ func (m *Memory) Get(ctx context.Context, key string) ([]byte, error) {
 		return nil, ErrNotFound
 	}
 
+	now := time.Now()
 	// Check expiration without lock first.
-	if !e.expired() {
+	if !e.expiredAt(now) {
 		return clone(e.value), nil
 	}
 
@@ -78,7 +80,8 @@ func (m *Memory) Get(ctx context.Context, key string) ([]byte, error) {
 		return nil, ErrNotFound
 	}
 
-	if e.expired() {
+	now = time.Now()
+	if e.expiredAt(now) {
 		delete(m.data, key)
 		return nil, ErrNotFound
 	}
@@ -103,8 +106,9 @@ func (m *Memory) Exists(ctx context.Context, key string) (bool, error) {
 		return false, nil
 	}
 
+	now := time.Now()
 	// Check expiration without lock first.
-	if !e.expired() {
+	if !e.expiredAt(now) {
 		return true, nil
 	}
 
@@ -118,7 +122,8 @@ func (m *Memory) Exists(ctx context.Context, key string) (bool, error) {
 		return false, nil
 	}
 
-	if e.expired() {
+	now = time.Now()
+	if e.expiredAt(now) {
 		delete(m.data, key)
 		return false, nil
 	}
@@ -126,11 +131,15 @@ func (m *Memory) Exists(ctx context.Context, key string) (bool, error) {
 	return true, nil
 }
 
-func (e entry) expired() bool {
+func (e entry) expiredAt(now time.Time) bool {
 	if e.expire.IsZero() {
 		return false
 	}
-	return time.Now().After(e.expire)
+	return now.After(e.expire)
+}
+
+func (e entry) expired() bool {
+	return e.expiredAt(time.Now())
 }
 
 func expiry(ttl time.Duration) time.Time {
@@ -154,9 +163,10 @@ func (m *Memory) MGet(ctx context.Context, keys []string) (map[string][]byte, er
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	result := make(map[string][]byte, len(keys))
 	for _, key := range keys {
-		if entry, ok := m.data[key]; ok && !entry.expired() {
+		if entry, ok := m.data[key]; ok && !entry.expiredAt(now) {
 			result[key] = clone(entry.value)
 		}
 	}
@@ -194,8 +204,9 @@ func (m *Memory) TTL(ctx context.Context, key string) (time.Duration, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	entry, ok := m.data[key]
-	if !ok || entry.expired() {
+	if !ok || entry.expiredAt(now) {
 		if ok {
 			delete(m.data, key)
 		}
@@ -206,7 +217,7 @@ func (m *Memory) TTL(ctx context.Context, key string) (time.Duration, error) {
 		return -1, nil
 	}
 
-	return time.Until(entry.expire), nil
+	return entry.expire.Sub(now), nil
 }
 
 // Expire sets or updates the TTL for a key.
@@ -214,8 +225,9 @@ func (m *Memory) Expire(ctx context.Context, key string, ttl time.Duration) erro
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	entry, ok := m.data[key]
-	if !ok || entry.expired() {
+	if !ok || entry.expiredAt(now) {
 		if ok {
 			delete(m.data, key)
 		}
@@ -232,8 +244,9 @@ func (m *Memory) Persist(ctx context.Context, key string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	entry, ok := m.data[key]
-	if !ok || entry.expired() {
+	if !ok || entry.expiredAt(now) {
 		if ok {
 			delete(m.data, key)
 		}
@@ -250,6 +263,7 @@ func (m *Memory) Keys(ctx context.Context, prefix, pattern string) ([]string, er
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	var result []string
 	for key := range m.data {
 		if !strings.HasPrefix(key, prefix+":") {
@@ -266,7 +280,7 @@ func (m *Memory) Keys(ctx context.Context, prefix, pattern string) ([]string, er
 			}
 		}
 
-		if entry := m.data[key]; !entry.expired() {
+		if entry := m.data[key]; !entry.expiredAt(now) {
 			result = append(result, key)
 		}
 	}
@@ -298,8 +312,9 @@ func (m *Memory) Incr(ctx context.Context, key string, delta int64) (int64, erro
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	e, ok := m.data[key]
-	if ok && e.expired() {
+	if ok && e.expiredAt(now) {
 		delete(m.data, key)
 		ok = false
 	}
@@ -336,8 +351,9 @@ func (m *Memory) GetSet(ctx context.Context, key string, value []byte) ([]byte, 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	e, ok := m.data[key]
-	if !ok || e.expired() {
+	if !ok || e.expiredAt(now) {
 		if ok {
 			delete(m.data, key)
 		}
@@ -357,8 +373,9 @@ func (m *Memory) CompareAndSwap(ctx context.Context, key string, oldValue, newVa
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	now := time.Now()
 	e, ok := m.data[key]
-	if !ok || e.expired() {
+	if !ok || e.expiredAt(now) {
 		if ok {
 			delete(m.data, key)
 		}

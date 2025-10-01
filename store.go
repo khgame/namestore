@@ -105,10 +105,11 @@ type Client[TKey ~string] interface {
 }
 
 type client[TKey ~string] struct {
-	prefix string
-	driver Driver
-	logger Logger
-	logTag string
+	prefix          string
+	prefixWithColon string
+	driver          Driver
+	logger          Logger
+	logTag          string
 }
 
 // New creates a namespace-scoped Client.
@@ -116,10 +117,12 @@ type client[TKey ~string] struct {
 // If no driver is provided via WithDriver, NewInMemoryDriver() is used.
 // If no logger is provided via WithLogger, a no-op logger is used (no logging).
 func New[TKey ~string](rootNS, domain string, opts ...Option[TKey]) Client[TKey] {
+	prefix := rootNS + ":" + domain
 	c := &client[TKey]{
-		prefix: fmt.Sprintf("%s:%s", rootNS, domain),
-		driver: NewInMemoryDriver(), // Default to in-memory
-		logger: defaultLogger,       // Default to no-op
+		prefix:          prefix,
+		prefixWithColon: prefix + ":",
+		driver:          NewInMemoryDriver(), // Default to in-memory
+		logger:          defaultLogger,       // Default to no-op
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -127,7 +130,15 @@ func New[TKey ~string](rootNS, domain string, opts ...Option[TKey]) Client[TKey]
 	return c
 }
 
-func (c *client[TKey]) key(k TKey) string { return fmt.Sprintf("%s:%s", c.prefix, k) }
+func (c *client[TKey]) key(k TKey) string {
+	if c.prefixWithColon != "" {
+		return c.prefixWithColon + string(k)
+	}
+	if c.prefix == "" {
+		return ":" + string(k)
+	}
+	return c.prefix + ":" + string(k)
+}
 
 func (c *client[TKey]) logf(level string, ctx context.Context, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
