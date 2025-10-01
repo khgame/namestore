@@ -301,4 +301,10 @@ func TestNoOpLoggerMethods(_ *testing.T) {
 	logger.Warn(ctx, "test")
 	logger.Error(ctx, "test")
 	logger.Debug(ctx, "test")
+
+	// Also test with formatting.
+	logger.Info(ctx, "test %s %d", "arg", 123)
+	logger.Warn(ctx, "test %s %d", "arg", 123)
+	logger.Error(ctx, "test %s %d", "arg", 123)
+	logger.Debug(ctx, "test %s %d", "arg", 123)
 }

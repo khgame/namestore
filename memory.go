@@ -54,14 +54,36 @@ func (m *Memory) SetNX(ctx context.Context, key string, value []byte, ttl time.D
 }
 
 func (m *Memory) Get(ctx context.Context, key string) ([]byte, error) {
+	// Fast path: optimistic read with RLock.
+	m.mu.RLock()
+	e, ok := m.data[key]
+	m.mu.RUnlock()
+
+	if !ok {
+		return nil, ErrNotFound
+	}
+
+	// Check expiration without lock first.
+	if !e.expired() {
+		return clone(e.value), nil
+	}
+
+	// Slow path: entry expired, need write lock to delete.
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	entry, ok := m.data[key]
-	if !ok || entry.expired() {
+
+	// Re-check after acquiring write lock (double-check pattern).
+	e, ok = m.data[key]
+	if !ok {
+		return nil, ErrNotFound
+	}
+
+	if e.expired() {
 		delete(m.data, key)
 		return nil, ErrNotFound
 	}
-	return clone(entry.value), nil
+
+	return clone(e.value), nil
 }
 
 func (m *Memory) Delete(ctx context.Context, key string) error {
@@ -72,15 +94,35 @@ func (m *Memory) Delete(ctx context.Context, key string) error {
 }
 
 func (m *Memory) Exists(ctx context.Context, key string) (bool, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	entry, ok := m.data[key]
-	if !ok || entry.expired() {
-		if ok {
-			delete(m.data, key)
-		}
+	// Fast path: optimistic read with RLock.
+	m.mu.RLock()
+	e, ok := m.data[key]
+	m.mu.RUnlock()
+
+	if !ok {
 		return false, nil
 	}
+
+	// Check expiration without lock first.
+	if !e.expired() {
+		return true, nil
+	}
+
+	// Slow path: entry expired, need write lock to delete.
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Re-check after acquiring write lock.
+	e, ok = m.data[key]
+	if !ok {
+		return false, nil
+	}
+
+	if e.expired() {
+		delete(m.data, key)
+		return false, nil
+	}
+
 	return true, nil
 }
 

@@ -42,3 +42,4 @@ debug
 __debug_bin
 
 coverage.*
+CLAUDE*.md
